@@ -1,24 +1,49 @@
-from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
-from astrbot.api.star import Context, Star, register
-from astrbot.api import logger
+from typing import List, Tuple, Any
+from botpy.message import Message
+from core.plugin import Plugin, handler
+from core.plugin import PluginMetadata
+from core import bot
 
-@register("helloworld", "YourName", "一个简单的 Hello World 插件", "1.0.0")
-class MyPlugin(Star):
-    def __init__(self, context: Context):
-        super().__init__(context)
+class KeywordReplyPlugin(Plugin):
+    # 插件元数据
+    metadata = PluginMetadata(
+        name='keyword_reply',
+        description='关键词自动回复插件',
+        usage='发送关键词即可触发回复',
+        version='1.0.0',
+        author='YourName'
+    )
 
-    async def initialize(self):
-        """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
-    
-    # 注册指令的装饰器。指令名为 helloworld。注册成功后，发送 `/helloworld` 就会触发这个指令，并回复 `你好, {user_name}!`
-    @filter.command("helloworld")
-    async def helloworld(self, event: AstrMessageEvent):
-        """这是一个 hello world 指令""" # 这是 handler 的描述，将会被解析方便用户了解插件内容。建议填写。
-        user_name = event.get_sender_name()
-        message_str = event.message_str # 用户发的纯文本消息字符串
-        message_chain = event.get_messages() # 用户所发的消息的消息链 # from astrbot.api.message_components import *
-        logger.info(message_chain)
-        yield event.plain_result(f"Hello, {user_name}, 你发了 {message_str}!") # 发送一条纯文本消息
+    # 关键词回复字典
+    keyword_replies = {
+        "地图密码": "零号大坝: 0229\n长弓溪谷: 0252\n巴克什: 2514\n航天基地: 2767",
+        "特勤处推荐": "ACOG精准六倍镜 - 晚上11点\n4.6x30mm AP SX - 凌晨5点\n战地医疗箱 - 上午6点\n精英防弹背心 - 上午6点",
+        "高价材料": "移动电缆 - 最佳买入:凌晨1点\n聚乙烯纤维 - 最佳买入:上午6点\n盒装挂耳咖啡 - 最佳买入:凌晨5点\n特种钢 - 最佳买入:上午6点",
+        "帮助": "可用命令:\n- 地图密码\n- 特勤处推荐\n- 高价材料"
+    }
 
-    async def terminate(self):
-        """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""
+    def __init__(self):
+        super().__init__()
+
+    @handler.on_message()
+    async def handle_message(self, message: Message):
+        # 获取消息内容
+        content = message.content
+        
+        # 检查是否匹配关键词
+        for keyword, reply in self.keyword_replies.items():
+            if keyword in content:
+                # 发送回复
+                await bot.api.post_message(
+                    channel_id=message.channel_id,
+                    content=reply
+                )
+                return
+
+    # 插件被加载时的处理
+    async def on_loaded(self):
+        print(f"[{self.metadata.name}] 插件已加载!")
+
+    # 插件被卸载时的处理
+    async def on_unloaded(self):
+        print(f"[{self.metadata.name}] 插件已卸载!") 
